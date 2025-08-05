@@ -1,4 +1,4 @@
-● # MediaPipe Gesture Control Desktop Application
+# MediaPipe Gesture Control Desktop Application
 
   A Python-based desktop application that uses MediaPipe for hand gesture recognition to control mouse functions. Control your computer using hand gestures captured through
   your webcam.
