@@ -4,5 +4,10 @@
       "Bash(mkdir:*)"
     ],
     "deny": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "awslabs.core-mcp-server",
+    "awslabs.aws-documentation-mcp-server",
+    "awslabs.aws-diagram-mcp-server"
+  ]
 }
