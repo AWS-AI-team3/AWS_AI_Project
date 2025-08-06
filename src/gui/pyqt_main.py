@@ -3,6 +3,7 @@ PyQt6-based main window for gesture control
 """
 
 import sys
+import platform
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, 
                            QPushButton, QLabel, QWidget, QFrame)
 from PyQt6.QtCore import Qt, pyqtSignal
