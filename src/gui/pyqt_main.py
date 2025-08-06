@@ -4,10 +4,16 @@ PyQt6-based main window for gesture control
 
 import sys
 import platform
+import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, 
                            QPushButton, QLabel, QWidget, QFrame)
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
+
+# Windows DPI 인식 설정
+if platform.system() == "Windows":
+    os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
+    os.environ["QT_SCALE_FACTOR"] = "1"
 
 from src.gesture.hand_overlay import HandOverlay
 
