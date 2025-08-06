@@ -7,6 +7,12 @@ import mediapipe as mp
 import numpy as np
 from typing import Optional, Tuple, List, Dict
 from config.settings import *
+# Import specific settings if needed
+try:
+    from config.settings import PINCH_THRESHOLD, SCROLL_ANGLE_THRESHOLD
+except ImportError:
+    PINCH_THRESHOLD = 0.04
+    SCROLL_ANGLE_THRESHOLD = 0.15
 
 class GestureRecognizer:
     def __init__(self):
@@ -16,7 +22,8 @@ class GestureRecognizer:
             static_image_mode=False,
             max_num_hands=MAX_NUM_HANDS,
             min_detection_confidence=HAND_DETECTION_CONFIDENCE,
-            min_tracking_confidence=HAND_TRACKING_CONFIDENCE
+            min_tracking_confidence=HAND_TRACKING_CONFIDENCE,
+            model_complexity=1  # Higher complexity for better accuracy
         )
         
         self.previous_landmarks = None
@@ -63,6 +70,7 @@ class GestureRecognizer:
         """Classify gesture based on hand landmarks"""
         # Finger tip and pip indices
         THUMB_TIP = 4
+        THUMB_IP = 3
         INDEX_TIP = 8
         INDEX_PIP = 6
         MIDDLE_TIP = 12
@@ -72,19 +80,22 @@ class GestureRecognizer:
         PINKY_TIP = 20
         PINKY_PIP = 18
         
-        # Check for thumb-index pinch (click gesture)
         thumb_pos = positions[THUMB_TIP]
         index_pos = positions[INDEX_TIP]
+        middle_pos = positions[MIDDLE_TIP]
         
-        # Calculate distance between thumb tip and index tip
-        distance = np.sqrt(np.sum((thumb_pos - index_pos) ** 2))
+        # Check for thumb-index pinch (left click) - more sensitive
+        thumb_index_dist = np.sqrt(np.sum((thumb_pos - index_pos) ** 2))
+        if thumb_index_dist < PINCH_THRESHOLD:
+            return "thumb_index_pinch"
         
-        # If thumb and index are close together, it's a pinch/click
-        if distance < 0.05:  # Adjust threshold as needed
-            return "pinch_click"
+        # Check for thumb-middle pinch (right click) - more sensitive
+        thumb_middle_dist = np.sqrt(np.sum((thumb_pos - middle_pos) ** 2))
+        if thumb_middle_dist < PINCH_THRESHOLD:
+            return "thumb_middle_pinch"
         
         # Get finger states (extended or not)
-        thumb_up = positions[THUMB_TIP][1] < positions[THUMB_TIP - 1][1]
+        thumb_up = positions[THUMB_TIP][1] < positions[THUMB_IP][1]
         index_up = positions[INDEX_TIP][1] < positions[INDEX_PIP][1]
         middle_up = positions[MIDDLE_TIP][1] < positions[MIDDLE_PIP][1]
         ring_up = positions[RING_TIP][1] < positions[RING_PIP][1]
@@ -93,35 +104,63 @@ class GestureRecognizer:
         fingers_up = [thumb_up, index_up, middle_up, ring_up, pinky_up]
         total_fingers = sum(fingers_up)
         
+        # Check for horizontal thumb scroll position - more sensitive
+        if total_fingers == 1 and thumb_up:
+            # Calculate thumb angle for scroll detection
+            thumb_angle = self._get_thumb_angle(positions)
+            if abs(thumb_angle) > SCROLL_ANGLE_THRESHOLD:  # Only trigger if significant angle
+                return f"thumb_scroll:{thumb_angle}"
+        
         # Gesture classification logic
         if total_fingers == 0:
             return "fist"
-        elif total_fingers == 1 and index_up:
-            return "cursor_point"  # Changed from index_finger_point
-        elif total_fingers == 1 and thumb_up:
-            return "thumb_up"
-        elif total_fingers == 2 and index_up and middle_up:
-            return "peace_sign"
         elif total_fingers == 5:
             return "open_hand"
         else:
-            return "cursor_point" if index_up else "unknown"
+            return "cursor_point"
     
     def get_mouse_position(self, landmarks: np.ndarray, frame_shape: Tuple[int, int]) -> Tuple[float, float]:
-        """Convert index finger position to normalized coordinates [0, 1]"""
+        """Convert thumb tip position to normalized coordinates [0, 1]"""
         if landmarks is None:
             return None
             
-        # Use index finger tip (landmark 8)
-        index_tip = landmarks[8]
+        # Use thumb tip (landmark 4) instead of index finger
+        thumb_tip = landmarks[4]
         
         # Return normalized coordinates (MediaPipe already provides normalized coords)
-        # MediaPipe coordinates are already mirrored when we flip the frame
-        # So we use them directly without additional flipping
-        norm_x = index_tip[0]  # Use direct x coordinate
-        norm_y = index_tip[1]
+        norm_x = thumb_tip[0]
+        norm_y = thumb_tip[1]
         
         return norm_x, norm_y
+    
+    def _get_thumb_angle(self, positions: np.ndarray) -> float:
+        """Calculate thumb angle for scroll detection"""
+        THUMB_TIP = 4
+        THUMB_IP = 3
+        THUMB_MCP = 2
+        
+        # Get thumb joint positions
+        tip = positions[THUMB_TIP]
+        ip = positions[THUMB_IP] 
+        mcp = positions[THUMB_MCP]
+        
+        # Calculate angle between thumb segments
+        v1 = tip - ip
+        v2 = ip - mcp
+        
+        # Calculate angle more accurately using Y-coordinate changes
+        # Use the Y difference of thumb tip relative to base for better scroll detection
+        thumb_base_y = positions[2][1]  # Thumb base Y
+        thumb_tip_y = positions[4][1]   # Thumb tip Y
+        
+        # Calculate vertical displacement for scroll
+        y_displacement = thumb_tip_y - thumb_base_y
+        
+        # Normalize the displacement for scroll speed (-1 to 1)
+        # Positive Y = down in screen coords = down scroll
+        # Negative Y = up in screen coords = up scroll
+        normalized_angle = np.clip(y_displacement * 8, -1.0, 1.0)  # Scale factor for sensitivity
+        return normalized_angle
     
     def detect_click_gesture(self, current_landmarks: np.ndarray) -> Optional[str]:
         """Detect click gestures based on finger movement"""

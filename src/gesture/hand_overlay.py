@@ -16,7 +16,8 @@ import pyautogui
 # Disable PyAutoGUI failsafe for smooth operation
 pyautogui.FAILSAFE = False
 
-from src.gesture.thumb_gesture_recognizer import ThumbGestureRecognizer
+from src.gesture.gesture_recognizer import GestureRecognizer
+from src.gesture.mouse_controller import MouseController
 
 
 class HandOverlayWidget(QWidget):
@@ -103,7 +104,8 @@ class HandOverlayWidget(QWidget):
 
 class HandOverlay:
     def __init__(self):
-        self.gesture_recognizer = ThumbGestureRecognizer()
+        self.gesture_recognizer = GestureRecognizer()
+        self.mouse_controller = MouseController()
         self.overlay_widget = HandOverlayWidget()
         self.cap = None
         self.is_tracking = False
@@ -119,12 +121,14 @@ class HandOverlay:
             return
             
         self.cap = cv2.VideoCapture(0)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        # Set high resolution for better accuracy
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        self.cap.set(cv2.CAP_PROP_FPS, 60)
         
         self.is_tracking = True
         self.overlay_widget.show()
-        self.timer.start(33)  # ~30 FPS
+        self.timer.start(16)  # ~60 FPS for better responsiveness
         
     def stop_tracking(self):
         """Stop hand tracking"""
@@ -157,30 +161,20 @@ class HandOverlay:
             landmarks = gesture_data['landmarks'].tolist()
             self.overlay_widget.update_landmarks(landmarks)
             
-            # Handle gestures
-            self.handle_gesture(gesture_data)
+            # Get mouse position from thumb
+            mouse_pos = self.gesture_recognizer.get_mouse_position(gesture_data['landmarks'], frame.shape[:2])
+            
+            # Debug: Print gesture and mouse position
+            print(f"Gesture: {gesture_data['type']}, Mouse pos: {mouse_pos}")
+            
+            # Process gesture with mouse controller
+            self.mouse_controller.process_gesture(gesture_data, mouse_pos)
         else:
             # Clear overlay if no hand detected
             self.overlay_widget.update_landmarks(None)
+            # End any ongoing gestures
+            self.mouse_controller.process_gesture(None, None)
             
     def handle_gesture(self, gesture_data):
-        """Handle detected gestures"""
-        gesture_type = gesture_data['type']
-        landmarks = gesture_data['landmarks']
-        
-        if gesture_type == "thumb_cursor":
-            # Move cursor based on thumb position
-            thumb_pos = self.gesture_recognizer.get_thumb_position(landmarks)
-            if thumb_pos:
-                screen_x = int(thumb_pos[0] * pyautogui.size()[0])
-                screen_y = int(thumb_pos[1] * pyautogui.size()[1])
-                # Smooth cursor movement
-                pyautogui.moveTo(screen_x, screen_y, duration=0.05)
-            
-        elif gesture_type == "thumb_index_click":
-            # Perform left click
-            pyautogui.click()
-            
-        elif gesture_type == "thumb_index_double_click":
-            # Perform double click
-            pyautogui.doubleClick()
+        """Handle detected gestures (deprecated - now handled by mouse_controller)"""
+        pass  # Now handled by mouse_controller.process_gesture()
