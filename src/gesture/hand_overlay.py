@@ -164,6 +164,10 @@ class HandOverlay:
             # Get mouse position from thumb
             mouse_pos = self.gesture_recognizer.get_mouse_position(gesture_data['landmarks'], frame.shape[:2])
             
+            # Always move cursor to thumb position regardless of gesture
+            if mouse_pos:
+                self.mouse_controller.move_mouse(mouse_pos)
+            
             # Debug: Print gesture and mouse position
             print(f"Gesture: {gesture_data['type']}, Mouse pos: {mouse_pos}")
             

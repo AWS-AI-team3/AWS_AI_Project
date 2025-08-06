@@ -134,7 +134,7 @@ class GestureRecognizer:
         return norm_x, norm_y
     
     def _get_thumb_angle(self, positions: np.ndarray) -> float:
-        """Calculate thumb angle for scroll detection"""
+        """Calculate thumb angle for scroll detection with speed control based on vertical angle"""
         THUMB_TIP = 4
         THUMB_IP = 3
         THUMB_MCP = 2
@@ -144,22 +144,35 @@ class GestureRecognizer:
         ip = positions[THUMB_IP] 
         mcp = positions[THUMB_MCP]
         
-        # Calculate angle between thumb segments
-        v1 = tip - ip
-        v2 = ip - mcp
+        # Calculate thumb direction vector
+        thumb_vector = tip - mcp
         
-        # Calculate angle more accurately using Y-coordinate changes
-        # Use the Y difference of thumb tip relative to base for better scroll detection
-        thumb_base_y = positions[2][1]  # Thumb base Y
-        thumb_tip_y = positions[4][1]   # Thumb tip Y
+        # Calculate vertical and horizontal components
+        vertical_component = thumb_vector[1]  # Y displacement
+        horizontal_component = abs(thumb_vector[0])  # Absolute X displacement
         
-        # Calculate vertical displacement for scroll
-        y_displacement = thumb_tip_y - thumb_base_y
+        # Calculate the angle from horizontal (0 = horizontal, 1 = vertical)
+        vector_magnitude = np.sqrt(thumb_vector[0]**2 + thumb_vector[1]**2)
+        if vector_magnitude < 0.01:  # Avoid division by zero
+            return 0.0
+            
+        # Calculate vertical ratio (how vertical the thumb is)
+        vertical_ratio = abs(vertical_component) / vector_magnitude
         
-        # Normalize the displacement for scroll speed (-1 to 1)
-        # Positive Y = down in screen coords = down scroll
-        # Negative Y = up in screen coords = up scroll
-        normalized_angle = np.clip(y_displacement * 8, -1.0, 1.0)  # Scale factor for sensitivity
+        # Speed factor: reduces as thumb becomes more horizontal
+        # When vertical_ratio is close to 1 (vertical thumb), speed_factor is 1
+        # When vertical_ratio is close to 0 (horizontal thumb), speed_factor approaches 0
+        speed_factor = vertical_ratio ** 2  # Square for more gradual speed reduction
+        
+        # Base scroll direction and strength
+        base_strength = vertical_component * 8  # Scale factor for sensitivity
+        
+        # Apply speed factor
+        final_scroll_strength = base_strength * speed_factor
+        
+        # Normalize and clip to reasonable range
+        normalized_angle = np.clip(final_scroll_strength, -1.0, 1.0)
+        
         return normalized_angle
     
     def detect_click_gesture(self, current_landmarks: np.ndarray) -> Optional[str]:

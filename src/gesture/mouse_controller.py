@@ -12,7 +12,7 @@ try:
                                 DOUBLE_CLICK_THRESHOLD, PINCH_THRESHOLD, SCROLL_ANGLE_THRESHOLD)
 except ImportError:
     CLICK_HOLD_TIME = 0.1
-    SCROLL_SENSITIVITY = 3
+    SCROLL_SENSITIVITY = 10
     MOUSE_SENSITIVITY = 1.2
     DOUBLE_CLICK_THRESHOLD = 0.4
     PINCH_THRESHOLD = 0.04
@@ -68,8 +68,9 @@ class MouseController:
         if gesture_type in self.gesture_actions:
             action = self.gesture_actions[gesture_type]
             
-            if gesture_type == "cursor_point" and mouse_pos:
-                action(mouse_pos)
+            if gesture_type == "cursor_point":
+                # Cursor movement is now handled in hand_overlay.py
+                pass
             elif gesture_type in ["thumb_index_pinch", "thumb_middle_pinch"]:
                 if mouse_pos:
                     action(mouse_pos)
@@ -117,9 +118,8 @@ class MouseController:
             pyautogui.mouseDown()
             self.last_click_time = current_time
         else:
-            # Continue dragging - move mouse while pinching
-            if mouse_pos:
-                self.move_mouse(mouse_pos)
+            # Continue dragging - mouse position is already updated in hand_overlay.py
+            pass
                 
     def end_pinch_drag(self):
         """End pinch drag operation"""
@@ -169,13 +169,13 @@ class MouseController:
         if not self.mouse_enabled:
             return
             
-        # Convert angle to scroll speed with improved sensitivity
-        # angle: -1 (up scroll) to 1 (down scroll)
-        scroll_speed = int(angle * SCROLL_SENSITIVITY * 2)  # Enhanced sensitivity
+        # Convert angle to scroll speed with natural direction
+        # angle: negative (thumb up = scroll up) to positive (thumb down = scroll down)
+        scroll_speed = int(-angle * SCROLL_SENSITIVITY * 2)  # Negative to fix direction
         
         # Add minimum threshold to avoid micro-scrolls
         if abs(scroll_speed) >= 1:
-            pyautogui.scroll(-scroll_speed)  # Negative for natural scroll direction
+            pyautogui.scroll(scroll_speed)  # Natural scroll direction
     
     def scroll_up(self):
         """Scroll up"""
