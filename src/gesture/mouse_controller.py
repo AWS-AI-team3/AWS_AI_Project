@@ -55,10 +55,16 @@ class MouseController:
             
         gesture_type = gesture_data.get('type')
         
-        # Handle scroll gestures
-        if gesture_type.startswith("thumb_scroll:"):
-            angle = float(gesture_type.split(":")[1])
-            self.handle_scroll(angle)
+        # Handle thumb-ring scroll gestures
+        if gesture_type.startswith("thumb_ring_scroll:"):
+            scroll_speed = float(gesture_type.split(":")[1])
+            self.handle_thumb_ring_scroll(scroll_speed)
+            return
+        elif gesture_type == "thumb_ring_scroll_start":
+            # Initialize scroll - no action needed, just acknowledgment
+            return
+        elif gesture_type == "thumb_ring_scroll_hold":
+            # Holding pinch position - no scroll action
             return
         
         # End pinch drag if different gesture detected
@@ -164,18 +170,19 @@ class MouseController:
         pyautogui.doubleClick()
         self.last_double_click_time = time.time()
     
-    def handle_scroll(self, angle: float):
-        """Handle thumb angle-based scrolling"""
+    def handle_thumb_ring_scroll(self, scroll_speed: float):
+        """Handle thumb-ring pinch scroll based on Y-axis movement"""
         if not self.mouse_enabled:
             return
             
-        # Convert angle to scroll speed with natural direction
-        # angle: negative (thumb up = scroll up) to positive (thumb down = scroll down)
-        scroll_speed = int(-angle * SCROLL_SENSITIVITY * 2)  # Negative to fix direction
+        # Convert scroll speed to scroll units
+        # Positive scroll_speed = moved down = scroll down (negative scroll units)
+        # Negative scroll_speed = moved up = scroll up (positive scroll units)
+        scroll_units = int(-scroll_speed * SCROLL_SENSITIVITY)
         
         # Add minimum threshold to avoid micro-scrolls
-        if abs(scroll_speed) >= 1:
-            pyautogui.scroll(scroll_speed)  # Natural scroll direction
+        if abs(scroll_units) >= 1:
+            pyautogui.scroll(scroll_units)
     
     def scroll_up(self):
         """Scroll up"""

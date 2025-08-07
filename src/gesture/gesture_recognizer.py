@@ -28,6 +28,8 @@ class GestureRecognizer:
         
         self.previous_landmarks = None
         self.gesture_history = []
+        self.thumb_ring_scroll_start_pos = None
+        self.is_thumb_ring_scrolling = False
         
     def process_frame(self, frame: np.ndarray) -> Tuple[np.ndarray, Optional[Dict]]:
         """Process video frame and detect hand gestures"""
@@ -45,6 +47,11 @@ class GestureRecognizer:
                 
                 # Extract gesture
                 gesture_data = self._extract_gesture(hand_landmarks)
+        else:
+            # No hands detected - reset scroll state
+            if self.is_thumb_ring_scrolling:
+                self.is_thumb_ring_scrolling = False
+                self.thumb_ring_scroll_start_pos = None
                 
         return frame, gesture_data
     
@@ -94,6 +101,12 @@ class GestureRecognizer:
         if thumb_middle_dist < PINCH_THRESHOLD:
             return "thumb_middle_pinch"
         
+        # Check for thumb-ring pinch (scroll gesture)
+        ring_pos = positions[RING_TIP]
+        thumb_ring_dist = np.sqrt(np.sum((thumb_pos - ring_pos) ** 2))
+        if thumb_ring_dist < PINCH_THRESHOLD:
+            return self._handle_thumb_ring_scroll(positions)
+        
         # Get finger states (extended or not)
         thumb_up = positions[THUMB_TIP][1] < positions[THUMB_IP][1]
         index_up = positions[INDEX_TIP][1] < positions[INDEX_PIP][1]
@@ -104,12 +117,7 @@ class GestureRecognizer:
         fingers_up = [thumb_up, index_up, middle_up, ring_up, pinky_up]
         total_fingers = sum(fingers_up)
         
-        # Check for horizontal thumb scroll position - more sensitive
-        if total_fingers == 1 and thumb_up:
-            # Calculate thumb angle for scroll detection
-            thumb_angle = self._get_thumb_angle(positions)
-            if abs(thumb_angle) > SCROLL_ANGLE_THRESHOLD:  # Only trigger if significant angle
-                return f"thumb_scroll:{thumb_angle}"
+        # Old thumb-only scroll gesture removed - replaced with thumb-ring pinch scroll
         
         # Gesture classification logic
         if total_fingers == 0:
@@ -133,47 +141,35 @@ class GestureRecognizer:
         
         return norm_x, norm_y
     
-    def _get_thumb_angle(self, positions: np.ndarray) -> float:
-        """Calculate thumb angle for scroll detection with speed control based on vertical angle"""
+    def _handle_thumb_ring_scroll(self, positions: np.ndarray) -> str:
+        """Handle thumb-ring pinch scroll gesture based on Y-axis movement"""
         THUMB_TIP = 4
-        THUMB_IP = 3
-        THUMB_MCP = 2
+        RING_TIP = 16
         
-        # Get thumb joint positions
-        tip = positions[THUMB_TIP]
-        ip = positions[THUMB_IP] 
-        mcp = positions[THUMB_MCP]
+        # Get current thumb-ring pinch center position
+        thumb_pos = positions[THUMB_TIP]
+        ring_pos = positions[RING_TIP]
+        current_pinch_pos = (thumb_pos + ring_pos) / 2  # Center point of pinch
         
-        # Calculate thumb direction vector
-        thumb_vector = tip - mcp
-        
-        # Calculate vertical and horizontal components
-        vertical_component = thumb_vector[1]  # Y displacement
-        horizontal_component = abs(thumb_vector[0])  # Absolute X displacement
-        
-        # Calculate the angle from horizontal (0 = horizontal, 1 = vertical)
-        vector_magnitude = np.sqrt(thumb_vector[0]**2 + thumb_vector[1]**2)
-        if vector_magnitude < 0.01:  # Avoid division by zero
-            return 0.0
+        if not self.is_thumb_ring_scrolling:
+            # First time detecting thumb-ring pinch - initialize scroll tracking
+            self.thumb_ring_scroll_start_pos = current_pinch_pos
+            self.is_thumb_ring_scrolling = True
+            return "thumb_ring_scroll_start"
+        else:
+            # Calculate Y-axis movement from initial pinch position
+            y_displacement = current_pinch_pos[1] - self.thumb_ring_scroll_start_pos[1]
             
-        # Calculate vertical ratio (how vertical the thumb is)
-        vertical_ratio = abs(vertical_component) / vector_magnitude
-        
-        # Speed factor: reduces as thumb becomes more horizontal
-        # When vertical_ratio is close to 1 (vertical thumb), speed_factor is 1
-        # When vertical_ratio is close to 0 (horizontal thumb), speed_factor approaches 0
-        speed_factor = vertical_ratio ** 2  # Square for more gradual speed reduction
-        
-        # Base scroll direction and strength
-        base_strength = vertical_component * 8  # Scale factor for sensitivity
-        
-        # Apply speed factor
-        final_scroll_strength = base_strength * speed_factor
-        
-        # Normalize and clip to reasonable range
-        normalized_angle = np.clip(final_scroll_strength, -1.0, 1.0)
-        
-        return normalized_angle
+            # Calculate scroll speed based on Y displacement
+            # Positive y_displacement = moved down = scroll down
+            # Negative y_displacement = moved up = scroll up
+            scroll_speed = y_displacement * 20  # Scale factor for sensitivity
+            
+            # Apply minimum threshold to avoid micro-scrolls
+            if abs(scroll_speed) > 0.5:
+                return f"thumb_ring_scroll:{scroll_speed}"
+            else:
+                return "thumb_ring_scroll_hold"
     
     def detect_click_gesture(self, current_landmarks: np.ndarray) -> Optional[str]:
         """Detect click gestures based on finger movement"""
