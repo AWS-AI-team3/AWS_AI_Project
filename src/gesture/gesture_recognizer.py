@@ -28,8 +28,8 @@ class GestureRecognizer:
         
         self.previous_landmarks = None
         self.gesture_history = []
-        self.thumb_ring_scroll_start_pos = None
-        self.is_thumb_ring_scrolling = False
+        self.thumb_index_middle_scroll_start_pos = None
+        self.is_thumb_index_middle_scrolling = False
         
     def process_frame(self, frame: np.ndarray) -> Tuple[np.ndarray, Optional[Dict]]:
         """Process video frame and detect hand gestures"""
@@ -49,9 +49,9 @@ class GestureRecognizer:
                 gesture_data = self._extract_gesture(hand_landmarks)
         else:
             # No hands detected - reset scroll state
-            if self.is_thumb_ring_scrolling:
-                self.is_thumb_ring_scrolling = False
-                self.thumb_ring_scroll_start_pos = None
+            if self.is_thumb_index_middle_scrolling:
+                self.is_thumb_index_middle_scrolling = False
+                self.thumb_index_middle_scroll_start_pos = None
                 
         return frame, gesture_data
     
@@ -101,11 +101,18 @@ class GestureRecognizer:
         if thumb_middle_dist < PINCH_THRESHOLD:
             return "thumb_middle_pinch"
         
-        # Check for thumb-ring pinch (scroll gesture)
-        ring_pos = positions[RING_TIP]
-        thumb_ring_dist = np.sqrt(np.sum((thumb_pos - ring_pos) ** 2))
-        if thumb_ring_dist < PINCH_THRESHOLD:
-            return self._handle_thumb_ring_scroll(positions)
+        # Check for thumb-index-middle triple pinch (scroll gesture)
+        # All three fingers (thumb, index, middle) must be close together
+        thumb_index_dist = np.sqrt(np.sum((thumb_pos - index_pos) ** 2))
+        thumb_middle_dist = np.sqrt(np.sum((thumb_pos - middle_pos) ** 2))
+        index_middle_dist = np.sqrt(np.sum((index_pos - middle_pos) ** 2))
+        
+        # Triple pinch condition: all distances must be below threshold
+        triple_pinch_threshold = PINCH_THRESHOLD * 2  # Slightly larger threshold for 3-finger pinch
+        if (thumb_index_dist < triple_pinch_threshold and 
+            thumb_middle_dist < triple_pinch_threshold and 
+            index_middle_dist < triple_pinch_threshold):
+            return self._handle_thumb_index_middle_scroll(positions)
         
         # Get finger states (extended or not)
         thumb_up = positions[THUMB_TIP][1] < positions[THUMB_IP][1]
@@ -141,35 +148,37 @@ class GestureRecognizer:
         
         return norm_x, norm_y
     
-    def _handle_thumb_ring_scroll(self, positions: np.ndarray) -> str:
-        """Handle thumb-ring pinch scroll gesture based on Y-axis movement"""
+    def _handle_thumb_index_middle_scroll(self, positions: np.ndarray) -> str:
+        """Handle thumb-index-middle triple pinch scroll gesture based on Y-axis movement"""
         THUMB_TIP = 4
-        RING_TIP = 16
+        INDEX_TIP = 8
+        MIDDLE_TIP = 12
         
-        # Get current thumb-ring pinch center position
+        # Get current triple pinch center position (average of 3 fingertips)
         thumb_pos = positions[THUMB_TIP]
-        ring_pos = positions[RING_TIP]
-        current_pinch_pos = (thumb_pos + ring_pos) / 2  # Center point of pinch
+        index_pos = positions[INDEX_TIP]
+        middle_pos = positions[MIDDLE_TIP]
+        current_pinch_pos = (thumb_pos + index_pos + middle_pos) / 3  # Center point of 3-finger pinch
         
-        if not self.is_thumb_ring_scrolling:
-            # First time detecting thumb-ring pinch - initialize scroll tracking
-            self.thumb_ring_scroll_start_pos = current_pinch_pos
-            self.is_thumb_ring_scrolling = True
-            return "thumb_ring_scroll_start"
+        if not self.is_thumb_index_middle_scrolling:
+            # First time detecting triple pinch - initialize scroll tracking
+            self.thumb_index_middle_scroll_start_pos = current_pinch_pos
+            self.is_thumb_index_middle_scrolling = True
+            return "thumb_index_middle_scroll_start"
         else:
             # Calculate Y-axis movement from initial pinch position
-            y_displacement = current_pinch_pos[1] - self.thumb_ring_scroll_start_pos[1]
+            y_displacement = current_pinch_pos[1] - self.thumb_index_middle_scroll_start_pos[1]
             
-            # Calculate scroll speed based on Y displacement
+            # Calculate scroll speed based on Y displacement with higher sensitivity
             # Positive y_displacement = moved down = scroll down
             # Negative y_displacement = moved up = scroll up
-            scroll_speed = y_displacement * 20  # Scale factor for sensitivity
+            scroll_speed = y_displacement * 50  # Increased sensitivity from 20 to 50
             
-            # Apply minimum threshold to avoid micro-scrolls
-            if abs(scroll_speed) > 0.5:
-                return f"thumb_ring_scroll:{scroll_speed}"
+            # Apply minimum threshold to avoid micro-scrolls (reduced for higher sensitivity)
+            if abs(scroll_speed) > 0.2:
+                return f"thumb_index_middle_scroll:{scroll_speed}"
             else:
-                return "thumb_ring_scroll_hold"
+                return "thumb_index_middle_scroll_hold"
     
     def detect_click_gesture(self, current_landmarks: np.ndarray) -> Optional[str]:
         """Detect click gestures based on finger movement"""
