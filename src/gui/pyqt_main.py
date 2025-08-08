@@ -90,12 +90,18 @@ class PyQtMainWindow(QMainWindow):
     
     def show_login_page(self):
         """Display login page"""
+        print("🔄 Showing login page...")  # Debug
         self.clear_current_layout()
         
+        # Create new central widget
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        
         # Main layout
-        layout = QVBoxLayout(self.centralWidget())
+        layout = QVBoxLayout(central_widget)
         layout.setContentsMargins(50, 50, 50, 50)
         layout.setSpacing(30)
+        print("✅ Login page layout created")  # Debug
         
         # Title
         title = QLabel(APP_NAME)
@@ -125,10 +131,16 @@ class PyQtMainWindow(QMainWindow):
     
     def show_main_page(self):
         """Display main page after login"""
+        print("🔄 Showing main page...")  # Debug
         self.clear_current_layout()
         
+        # Create new central widget
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        
         # Main layout
-        layout = QVBoxLayout(self.centralWidget())
+        layout = QVBoxLayout(central_widget)
+        print("✅ Main page layout created")  # Debug
         layout.setContentsMargins(40, 40, 40, 40)
         layout.setSpacing(20)
         
@@ -200,35 +212,17 @@ class PyQtMainWindow(QMainWindow):
     
     def clear_current_layout(self):
         """Clear current layout"""
-        widget = self.centralWidget()
-        if widget.layout():
-            # Clear all widgets from the layout
-            while widget.layout().count():
-                child = widget.layout().takeAt(0)
-                if child.widget():
-                    child.widget().deleteLater()
-                elif child.layout():
-                    # Recursively clear nested layouts
-                    self._clear_layout(child.layout())
-            # Delete the layout itself
-            widget.layout().deleteLater()
-            # Process pending delete events
+        # Since we create a new central widget each time, 
+        # just delete the old central widget if it exists
+        old_widget = self.centralWidget()
+        if old_widget:
+            old_widget.deleteLater()
             QApplication.processEvents()
-            
-    def _clear_layout(self, layout):
-        """Recursively clear a layout"""
-        while layout.count():
-            child = layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
-            elif child.layout():
-                self._clear_layout(child.layout())
         
     def on_login(self):
         """Handle login button click"""
         self.is_authenticated = True
-        # Use a timer to ensure layout clearing is complete
-        QTimer.singleShot(50, self.show_main_page)
+        self.show_main_page()
         
     def show_help(self):
         """Show help dialog"""
@@ -289,8 +283,7 @@ class PyQtMainWindow(QMainWindow):
         if self.hand_overlay:
             self.hand_overlay.stop_tracking()
         self.is_authenticated = False
-        # Use a timer to ensure layout clearing is complete
-        QTimer.singleShot(50, self.show_login_page)
+        self.show_login_page()
         
     def start_tracking(self):
         """Start hand tracking with overlay"""
