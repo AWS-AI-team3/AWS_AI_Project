@@ -153,9 +153,13 @@ class TrackingWindow:
                 mouse_pos = None
                 if 'landmarks' in gesture_data:
                     landmarks = gesture_data['landmarks']
-                    mouse_pos = self.gesture_recognizer.get_mouse_position(
-                        landmarks, (CAMERA_HEIGHT, CAMERA_WIDTH)
-                    )
+                    # Use thumb position method if available, otherwise fallback
+                    if hasattr(self.gesture_recognizer, 'get_thumb_position'):
+                        mouse_pos = self.gesture_recognizer.get_thumb_position(landmarks)
+                    else:
+                        mouse_pos = self.gesture_recognizer.get_mouse_position(
+                            landmarks, (CAMERA_HEIGHT, CAMERA_WIDTH)
+                        )
                 
                 # Process gesture for mouse control
                 self.mouse_controller.process_gesture(gesture_data, mouse_pos)
@@ -235,6 +239,7 @@ class TrackingWindow:
         else:
             self.record_btn.configure(text="🎤 녹음 시작")
             self.update_status("상태: 실행 중")
+    
     
     def stop(self):
         """Stop tracking and close window"""

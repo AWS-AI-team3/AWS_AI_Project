@@ -13,7 +13,7 @@ import os
 
 from src.auth.google_auth import GoogleAuthenticator  
 from src.face.face_recognition_system import FaceRecognitionSystem
-from src.gesture.gesture_recognizer import GestureRecognizer
+from src.gesture.thumb_gesture_recognizer import ThumbGestureRecognizer
 from src.gesture.mouse_controller import MouseController
 from src.gui.tracking_window import TrackingWindow
 from src.gui.settings_window import SettingsWindow
@@ -32,7 +32,7 @@ class GestureControlApp:
         # Initialize components
         self.auth = GoogleAuthenticator()
         self.face_system = FaceRecognitionSystem()
-        self.gesture_recognizer = GestureRecognizer()
+        self.gesture_recognizer = ThumbGestureRecognizer()
         self.mouse_controller = MouseController()
         
         # Application state
