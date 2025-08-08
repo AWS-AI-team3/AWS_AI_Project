@@ -15,7 +15,7 @@ if platform.system() == "Windows":
     os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
     os.environ["QT_SCALE_FACTOR"] = "1"
 
-from src.gesture.hand_overlay import HandOverlay
+from src.gesture.simple_overlay import SimpleHandOverlay
 
 
 class PyQtMainWindow(QMainWindow):
@@ -97,7 +97,9 @@ class PyQtMainWindow(QMainWindow):
     def start_tracking(self):
         """Start hand tracking with overlay"""
         if self.hand_overlay is None:
-            self.hand_overlay = HandOverlay()
+            self.hand_overlay = SimpleHandOverlay()
+            # Set callback for remote tracking stop
+            self.hand_overlay.set_tracking_stop_callback(self.on_remote_tracking_stopped)
         
         self.hand_overlay.start_tracking()
         self.start_button.hide()
@@ -108,6 +110,12 @@ class PyQtMainWindow(QMainWindow):
         if self.hand_overlay:
             self.hand_overlay.stop_tracking()
         
+        self.stop_button.hide()
+        self.start_button.show()
+        
+    def on_remote_tracking_stopped(self):
+        """Handle tracking stopped from remote control"""
+        # Update button states to match the stop_tracking method
         self.stop_button.hide()
         self.start_button.show()
         
