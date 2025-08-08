@@ -41,14 +41,32 @@ uv pip install -e ".[dev]"
 
 ## 🏃‍♂️ 실행 방법
 
-### PyQt6 GUI 버전 (권장)
+### 방법 1: uv run 사용 (가장 간단, 권장)
 ```cmd
-python src\gui\pyqt_main.py
+# PyQt6 GUI 버전 (권장)
+uv run gesture-control
+
+# 심플 버전
+uv run gesture-control-simple
 ```
 
-### 심플 버전
+### 방법 2: 가상환경에서 실행
 ```cmd
+# 가상환경 활성화
+.venv\Scripts\activate
+
+# PyQt6 GUI 버전
+python -m src.gui.pyqt_main
+
+# 심플 버전
 python main.py
+```
+
+### 방법 3: PYTHONPATH 설정
+```cmd  
+# 현재 디렉토리를 PYTHONPATH에 추가
+set PYTHONPATH=%CD%
+python src\gui\pyqt_main.py
 ```
 
 ## 📋 Windows 시스템 요구사항
