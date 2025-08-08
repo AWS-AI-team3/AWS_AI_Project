@@ -523,13 +523,46 @@ class SimpleHandOverlay:
         if pyautogui is None:
             return
             
-        # Thumb cursor movement is now handled in process_frame()
-        # Only handle click gestures here
+        # Handle scroll gestures
+        if gesture_type.startswith("thumb_index_middle_scroll:"):
+            scroll_speed = float(gesture_type.split(":")[1])
+            self.handle_scroll(scroll_speed)
+            return
+        elif gesture_type in ["thumb_index_middle_scroll_start", "thumb_index_middle_scroll_hold"]:
+            return  # No action needed
+            
+        # Handle click and drag gestures
         if gesture_type == "thumb_index_click":
             pyautogui.click()
             
         elif gesture_type == "thumb_index_double_click":
             pyautogui.doubleClick()
+            
+        elif gesture_type == "thumb_middle_pinch":
+            pyautogui.rightClick()
+            
+        elif gesture_type == "thumb_index_pinch_start":
+            pyautogui.mouseDown()
+            
+        elif gesture_type == "thumb_index_drag":
+            pass  # Mouse position is already being updated
+            
+        elif gesture_type == "thumb_index_drag_end":
+            pyautogui.mouseUp()
+    
+    def handle_scroll(self, scroll_speed: float):
+        """Handle scroll gesture based on Y-axis movement"""
+        if pyautogui is None:
+            return
+            
+        # Convert scroll speed to scroll units
+        # Positive scroll_speed = moved down = scroll down (negative units)
+        # Negative scroll_speed = moved up = scroll up (positive units)
+        scroll_units = int(-scroll_speed * 10 * 2)  # Sensitivity * 2
+        
+        # Apply scroll if above threshold
+        if abs(scroll_units) >= 1:
+            pyautogui.scroll(scroll_units)
             
     def start_recording(self):
         """Start recording functionality"""

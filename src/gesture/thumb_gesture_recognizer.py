@@ -31,6 +31,15 @@ class ThumbGestureRecognizer:
         self.touch_threshold = 0.06  # Distance threshold for touch detection
         self.was_touching = False
         
+        # For 3-finger scroll (thumb + index + middle)
+        self.thumb_index_middle_scroll_start_pos = None
+        self.is_thumb_index_middle_scrolling = False
+        self.triple_pinch_threshold = 0.12  # Threshold for 3-finger pinch
+        
+        # For drag detection (thumb + index pinch hold)
+        self.is_dragging = False
+        self.drag_start_time = 0
+        
     def process_frame(self, frame: np.ndarray) -> Tuple[np.ndarray, Optional[Dict]]:
         """Process video frame and detect thumb-based gestures"""
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -69,50 +78,78 @@ class ThumbGestureRecognizer:
         
         # Landmark indices
         THUMB_TIP = 4
-        THUMB_MCP = 2
         INDEX_TIP = 8
-        INDEX_MCP = 5
-        WRIST = 0
+        MIDDLE_TIP = 12
         
         # Get positions
         thumb_tip = positions[THUMB_TIP]
         index_tip = positions[INDEX_TIP]
-        thumb_mcp = positions[THUMB_MCP]
-        index_mcp = positions[INDEX_MCP]
-        wrist = positions[WRIST]
+        middle_tip = positions[MIDDLE_TIP]
         
-        # Calculate distance between thumb tip and index tip
+        # Calculate distances
         thumb_index_distance = np.sqrt(np.sum((thumb_tip - index_tip) ** 2))
+        thumb_middle_distance = np.sqrt(np.sum((thumb_tip - middle_tip) ** 2))
+        index_middle_distance = np.sqrt(np.sum((index_tip - middle_tip) ** 2))
         
-        # Check if thumb and index are touching
-        is_touching = thumb_index_distance < self.touch_threshold
+        # Check for 3-finger pinch (scroll gesture)
+        if (thumb_index_distance < self.triple_pinch_threshold and 
+            thumb_middle_distance < self.triple_pinch_threshold and 
+            index_middle_distance < self.triple_pinch_threshold):
+            return self._handle_thumb_index_middle_scroll(positions)
         
-        # Detect touch events (transition from not touching to touching)
-        if is_touching and not self.was_touching:
-            # Just started touching
+        # Reset scroll state if not in triple pinch
+        if self.is_thumb_index_middle_scrolling:
+            self.is_thumb_index_middle_scrolling = False
+            self.thumb_index_middle_scroll_start_pos = None
+        
+        # Check for thumb-middle pinch (right click)
+        if thumb_middle_distance < self.touch_threshold:
             if current_time - self.last_gesture_time > self.click_cooldown:
                 self.last_gesture_time = current_time
-                
-                # Check for double-click
-                if current_time - self.last_click_time < self.double_click_threshold:
-                    self.last_click_time = 0  # Reset to prevent triple-click
-                    self.was_touching = is_touching
-                    return "thumb_index_double_click"
+                return "thumb_middle_pinch"
+        
+        # Check for thumb-index pinch
+        is_touching = thumb_index_distance < self.touch_threshold
+        
+        if is_touching:
+            if not self.was_touching:
+                # Just started pinch
+                if current_time - self.last_gesture_time > self.click_cooldown:
+                    self.last_gesture_time = current_time
+                    self.drag_start_time = current_time
+                    
+                    # Check for double-click
+                    if current_time - self.last_click_time < self.double_click_threshold:
+                        self.last_click_time = 0
+                        self.was_touching = is_touching
+                        return "thumb_index_double_click"
+                    else:
+                        self.last_click_time = current_time
+                        self.was_touching = is_touching
+                        self.is_dragging = True
+                        return "thumb_index_pinch_start"
+            else:
+                # Continuing pinch - check if it's drag
+                if self.is_dragging and current_time - self.drag_start_time > 0.15:
+                    return "thumb_index_drag"
                 else:
-                    self.last_click_time = current_time
-                    self.was_touching = is_touching
+                    return "thumb_index_pinch_hold"
+        else:
+            # Released pinch
+            if self.was_touching and self.is_dragging:
+                drag_duration = current_time - self.drag_start_time
+                self.is_dragging = False
+                self.was_touching = False
+                
+                if drag_duration < 0.15:  # Short duration = click
                     return "thumb_index_click"
+                else:  # Long duration = drag end
+                    return "thumb_index_drag_end"
         
         self.was_touching = is_touching
         
-        # Default cursor control using thumb position
-        # Check if thumb is extended (higher than MCP joint)
-        thumb_extended = thumb_tip[1] < thumb_mcp[1]
-        
-        if thumb_extended:
-            return "thumb_cursor"
-        
-        return "idle"
+        # Default cursor control
+        return "thumb_cursor"
     
     def get_thumb_position(self, landmarks: np.ndarray) -> Tuple[float, float]:
         """Get normalized thumb position for cursor control"""
@@ -128,6 +165,38 @@ class ThumbGestureRecognizer:
         norm_y = thumb_tip[1]
         
         return norm_x, norm_y
+    
+    def _handle_thumb_index_middle_scroll(self, positions: np.ndarray) -> str:
+        """Handle thumb-index-middle triple pinch scroll gesture based on Y-axis movement"""
+        THUMB_TIP = 4
+        INDEX_TIP = 8
+        MIDDLE_TIP = 12
+        
+        # Get current triple pinch center position (average of 3 fingertips)
+        thumb_pos = positions[THUMB_TIP]
+        index_pos = positions[INDEX_TIP]
+        middle_pos = positions[MIDDLE_TIP]
+        current_pinch_pos = (thumb_pos + index_pos + middle_pos) / 3  # Center point of 3-finger pinch
+        
+        if not self.is_thumb_index_middle_scrolling:
+            # First time detecting triple pinch - initialize scroll tracking
+            self.thumb_index_middle_scroll_start_pos = current_pinch_pos
+            self.is_thumb_index_middle_scrolling = True
+            return "thumb_index_middle_scroll_start"
+        else:
+            # Calculate Y-axis movement from initial pinch position
+            y_displacement = current_pinch_pos[1] - self.thumb_index_middle_scroll_start_pos[1]
+            
+            # Calculate scroll speed based on Y displacement with higher sensitivity
+            # Positive y_displacement = moved down = scroll down
+            # Negative y_displacement = moved up = scroll up
+            scroll_speed = y_displacement * 50  # High sensitivity
+            
+            # Apply minimum threshold to avoid micro-scrolls
+            if abs(scroll_speed) > 0.2:
+                return f"thumb_index_middle_scroll:{scroll_speed}"
+            else:
+                return "thumb_index_middle_scroll_hold"
     
     def cleanup(self):
         """Clean up resources"""
