@@ -5,22 +5,26 @@ build-backend = "hatchling.build"
 [project]
 name = "gesture-control-app"
 version = "1.0.0"
-description = "MediaPipe-based gesture control desktop application with PyQt6 overlay system"
+description = "Windows용 MediaPipe 기반 손 제스처 제어 데스크톱 앱"
 authors = [
     {name = "AWS AI Team3", email = "team@example.com"},
 ]
-readme = "README.md"
+readme = "INSTALLATION.md"
 requires-python = ">=3.8.1"
-keywords = ["gesture-control", "mediapipe", "hand-tracking", "pyqt6", "desktop-automation"]
+keywords = ["gesture-control", "mediapipe", "hand-tracking", "pyqt6", "windows", "desktop-automation"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: End Users/Desktop",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows :: Windows 10",
+    "Operating System :: Microsoft :: Windows :: Windows 11",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Topic :: Multimedia :: Graphics :: Capture :: Digital Camera",
+    "Topic :: Scientific/Engineering :: Human Machine Interfaces",
 ]
 
 # 사용자용 - 모든 앱 기능 포함

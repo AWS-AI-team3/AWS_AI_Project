@@ -1,14 +1,14 @@
-# 🚀 설치 가이드
+# 🚀 Windows 설치 가이드
 
-## 📦 uv를 이용한 모듈러 설치 (권장)
+## 🎯 Windows 전용 uv 설치
 
 ### 👤 **일반 사용자용 설치**
-제스처 제어 앱의 모든 기능을 사용하고 싶은 경우:
+제스처 제어 앱의 모든 기능을 사용하려면:
 
-```bash
+```cmd
 # uv 가상환경 생성 및 활성화
 uv venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+.venv\Scripts\activate
 
 # 사용자용 설치 (모든 앱 기능 포함)
 uv pip install -e .
@@ -21,12 +21,12 @@ uv pip install -e .
 - ✅ 카메라 피드, 리모컨, 광고창 등 모든 GUI
 
 ### 🛠️ **개발자용 설치** 
-코드 개발 및 기여를 위한 경우:
+코드 개발 및 기여를 위해:
 
-```bash
+```cmd
 # uv 가상환경 생성 및 활성화
 uv venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+.venv\Scripts\activate
 
 # 개발자용 설치 (개발 도구 포함)
 uv pip install -e ".[dev]"
@@ -42,49 +42,50 @@ uv pip install -e ".[dev]"
 ## 🏃‍♂️ 실행 방법
 
 ### PyQt6 GUI 버전 (권장)
-```bash
-python src/gui/pyqt_main.py
+```cmd
+python src\gui\pyqt_main.py
 ```
 
 ### 심플 버전
-```bash  
+```cmd
 python main.py
 ```
 
-## 📋 시스템 요구사항
+## 📋 Windows 시스템 요구사항
 
 - **Python**: 3.8.1 이상
-- **OS**: Windows 10/11, macOS 10.15+, Ubuntu 18.04+
+- **OS**: Windows 10 (1903 이상) 또는 Windows 11
 - **카메라**: USB 웹캠 또는 내장 카메라
 - **메모리**: 최소 4GB RAM (8GB 권장)
+- **Visual C++ Redistributable**: 2015-2022 (MediaPipe 요구사항)
 
-## 🔧 문제 해결
+## 🔧 Windows 문제 해결
 
 ### MediaPipe 설치 실패 시
-```bash
+```cmd
+# Visual C++ Redistributable 설치 후 재시도
+# https://aka.ms/vs/17/release/vc_redist.x64.exe
+
 # pip 업그레이드 후 재시도
 uv pip install --upgrade pip
 uv pip install mediapipe
 ```
 
-### PyQt6 설치 실패 시
-```bash  
-# 시스템별 의존성 설치
-# Ubuntu/Debian
-sudo apt-get install python3-pyqt6
+### DPI 인식 경고 시
+- Qt 애플리케이션에서 DPI 관련 경고가 나타날 수 있으나 기능에는 영향 없음
+- Windows 디스플레이 설정에서 "배율 및 레이아웃" 100%로 설정 권장
 
-# macOS  
-brew install pyqt6
-
-# Windows - 일반적으로 자동 설치됨
-```
-
-### 권한 오류 시
-```bash
-# Windows에서 관리자 권한으로 실행하거나
+### 관리자 권한 필요 시
+```cmd
+# 명령 프롬프트를 관리자 권한으로 실행하거나
 # 사용자 레벨 설치 사용
 uv pip install --user -e .
 ```
+
+### 카메라 접근 권한
+Windows 10/11에서 카메라 접근이 차단된 경우:
+1. **설정** > **개인 정보 보호** > **카메라**
+2. **데스크톱 앱이 카메라에 액세스하도록 허용** 켜기
 
 ## 📊 용량 정보
 
