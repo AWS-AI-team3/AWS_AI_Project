@@ -8,11 +8,16 @@ import platform
 import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, 
                            QPushButton, QLabel, QWidget, QFrame, QMessageBox, QTextEdit)
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from PyQt6.QtGui import QFont, QPalette, QColor
 
 # Windows DPI 인식 설정
 if platform.system() == "Windows":
+    try:
+        from ctypes import windll
+        windll.shcore.SetProcessDpiAwareness(1)
+    except:
+        pass
     os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
     os.environ["QT_SCALE_FACTOR"] = "1"
 
@@ -197,15 +202,33 @@ class PyQtMainWindow(QMainWindow):
         """Clear current layout"""
         widget = self.centralWidget()
         if widget.layout():
+            # Clear all widgets from the layout
             while widget.layout().count():
                 child = widget.layout().takeAt(0)
                 if child.widget():
                     child.widget().deleteLater()
+                elif child.layout():
+                    # Recursively clear nested layouts
+                    self._clear_layout(child.layout())
+            # Delete the layout itself
+            widget.layout().deleteLater()
+            # Process pending delete events
+            QApplication.processEvents()
+            
+    def _clear_layout(self, layout):
+        """Recursively clear a layout"""
+        while layout.count():
+            child = layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+            elif child.layout():
+                self._clear_layout(child.layout())
         
     def on_login(self):
         """Handle login button click"""
         self.is_authenticated = True
-        self.show_main_page()
+        # Use a timer to ensure layout clearing is complete
+        QTimer.singleShot(50, self.show_main_page)
         
     def show_help(self):
         """Show help dialog"""
@@ -266,7 +289,8 @@ class PyQtMainWindow(QMainWindow):
         if self.hand_overlay:
             self.hand_overlay.stop_tracking()
         self.is_authenticated = False
-        self.show_login_page()
+        # Use a timer to ensure layout clearing is complete
+        QTimer.singleShot(50, self.show_login_page)
         
     def start_tracking(self):
         """Start hand tracking with overlay"""
