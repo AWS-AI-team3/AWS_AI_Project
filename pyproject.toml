@@ -3,15 +3,15 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "gesture-control-app"
+name = "sigma-gesture-control"
 version = "1.0.0"
-description = "Windows용 MediaPipe 기반 손 제스처 제어 데스크톱 앱"
+description = "SIGMA - Smart Interactive Gesture Management Assistant"
 authors = [
     {name = "AWS AI Team3", email = "team@example.com"},
 ]
-readme = "INSTALLATION.md"
-requires-python = ">=3.8.1"
-keywords = ["gesture-control", "mediapipe", "hand-tracking", "pyqt6", "windows", "desktop-automation"]
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["gesture-control", "mediapipe", "hand-tracking", "pyqt6", "desktop-automation"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: End Users/Desktop",
@@ -27,24 +27,12 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Human Machine Interfaces",
 ]
 
-# 사용자용 - PyQt6 기반 제스처 제어 앱
 dependencies = [
     "mediapipe>=0.10.8,<0.11.0",
     "opencv-python>=4.8.1,<5.0.0", 
     "numpy>=1.24.3,<2.0.0",
     "pyautogui>=0.9.54",
     "PyQt6>=6.6.0",
-]
-
-[project.optional-dependencies]
-# 개발자용 - 개발 도구 추가
-dev = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "black>=23.0.0",
-    "flake8>=6.0.0",
-    "mypy>=1.0.0",
-    "pre-commit>=3.0.0",
 ]
 
 [project.urls]
