@@ -23,39 +23,50 @@ class HandOverlayWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.hand_landmarks = None
+        self.gesture_data = None
         self.screen_width = QApplication.primaryScreen().size().width()
         self.screen_height = QApplication.primaryScreen().size().height()
         
-        # Make widget transparent and always on top
+        # Make widget transparent and always on top with highest priority
         self.setWindowFlags(
             Qt.WindowType.WindowStaysOnTopHint |
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.Tool |
-            Qt.WindowType.WindowTransparentForInput
+            Qt.WindowType.WindowTransparentForInput |
+            Qt.WindowType.WindowDoesNotAcceptFocus |
+            Qt.WindowType.X11BypassWindowManagerHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         
         # Set to full screen
         self.setGeometry(0, 0, self.screen_width, self.screen_height)
         
-    def update_landmarks(self, landmarks: Optional[List[List[float]]]):
-        """Update hand landmarks and trigger repaint"""
+        # Timer to ensure it stays on top
+        self.raise_timer = QTimer()
+        self.raise_timer.timeout.connect(self.ensure_on_top)
+        self.raise_timer.start(100)  # Check every 100ms
+        
+    def update_landmarks(self, landmarks: Optional[List[List[float]]], gesture_data: Optional[dict] = None):
+        """Update hand landmarks and gesture data, trigger repaint"""
         self.hand_landmarks = landmarks
+        self.gesture_data = gesture_data
         self.update()
         
+    def ensure_on_top(self):
+        """Ensure the overlay stays on top of all other windows"""
+        if self.isVisible():
+            self.raise_()
+            self.activateWindow()
+        
     def paintEvent(self, event):
-        """Draw hand skeleton on overlay"""
+        """Draw only index and middle fingers with color changes during interactions"""
         if not self.hand_landmarks:
             return
             
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
-        # Set up pen for drawing
-        pen = QPen(QColor(0, 255, 0, 200))  # Green with transparency
-        pen.setWidth(3)
-        painter.setPen(pen)
         
         # Convert normalized landmarks to screen coordinates
         screen_landmarks = []
@@ -64,16 +75,50 @@ class HandOverlayWidget(QWidget):
             y = int(point[1] * self.screen_height)
             screen_landmarks.append((x, y))
         
-        # Only draw fingertips: thumb(4), index(8), middle(12)
-        fingertip_indices = [4, 8, 12]  # Thumb, Index, Middle fingertips
+        # Only draw index(8) and middle(12) finger tips
+        finger_indices = [8, 12]  # Index, Middle fingertips
         
-        dot_pen = QPen(QColor(255, 0, 0, 200))  # Red dots
-        dot_pen.setWidth(8)  # Larger dots for fingertips
-        painter.setPen(dot_pen)
+        # Default colors (grey)
+        default_color = QColor(128, 128, 128, 200)  # Grey dots
+        thumb_index_color = QColor(0, 255, 0, 255)  # Bright green for thumb-index interaction
+        thumb_middle_color = QColor(255, 100, 0, 255)  # Orange for thumb-middle interaction
         
-        for i in fingertip_indices:
-            if i < len(screen_landmarks):
-                x, y = screen_landmarks[i]
+        # Check for thumb interactions
+        is_thumb_index_interacting = False
+        is_thumb_middle_interacting = False
+        
+        if self.gesture_data and self.gesture_data.get('type'):
+            gesture_type = self.gesture_data['type']
+            
+            # Check for scroll gestures (both fingers should change color)
+            if 'scroll' in gesture_type:
+                is_thumb_index_interacting = True
+                is_thumb_middle_interacting = True
+            else:
+                # Check for specific thumb-index interactions
+                if any(keyword in gesture_type for keyword in ['thumb_index', 'drag', 'click']):
+                    is_thumb_index_interacting = True
+                # Check for thumb-middle interactions  
+                if 'thumb_middle' in gesture_type:
+                    is_thumb_middle_interacting = True
+        
+        # Draw finger dots with appropriate colors
+        for i, finger_idx in enumerate(finger_indices):
+            if finger_idx < len(screen_landmarks):
+                x, y = screen_landmarks[finger_idx]
+                
+                # Choose color based on interaction
+                if finger_idx == 8 and is_thumb_index_interacting:  # Index finger
+                    color = thumb_index_color
+                elif finger_idx == 12 and is_thumb_middle_interacting:  # Middle finger
+                    color = thumb_middle_color
+                else:
+                    color = default_color
+                
+                # Draw the finger tip
+                dot_pen = QPen(color)
+                dot_pen.setWidth(10)  # Larger dots for visibility
+                painter.setPen(dot_pen)
                 painter.drawPoint(x, y)
     
     def draw_hand_connections(self, painter, landmarks):
@@ -498,9 +543,9 @@ class SimpleHandOverlay:
         self.camera_window.update_frame(frame)
         
         if gesture_data and gesture_data['landmarks'] is not None:
-            # Update full screen overlay with landmarks
+            # Update full screen overlay with landmarks and gesture data
             landmarks = gesture_data['landmarks'].tolist()
-            self.hand_overlay_widget.update_landmarks(landmarks)
+            self.hand_overlay_widget.update_landmarks(landmarks, gesture_data)
             
             # Move cursor to thumb position (always follow thumb)
             thumb_pos = self.gesture_recognizer.get_thumb_position(gesture_data['landmarks'])
@@ -513,7 +558,7 @@ class SimpleHandOverlay:
             self.handle_gesture(gesture_data)
         else:
             # Clear overlay if no hand detected
-            self.hand_overlay_widget.update_landmarks(None)
+            self.hand_overlay_widget.update_landmarks(None, None)
             
     def handle_gesture(self, gesture_data):
         """Handle detected gestures"""
