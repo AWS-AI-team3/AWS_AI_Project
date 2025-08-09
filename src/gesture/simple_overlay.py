@@ -58,7 +58,6 @@ class HandOverlayWidget(QWidget):
         """Ensure the overlay stays on top of all other windows"""
         if self.isVisible():
             self.raise_()
-            self.activateWindow()
         
     def paintEvent(self, event):
         """Draw only index and middle fingers with color changes during interactions"""
@@ -503,7 +502,6 @@ class SimpleHandOverlay:
         
         # Show hand overlay last to ensure it's on top
         self.hand_overlay_widget.show()
-        self.hand_overlay_widget.raise_()  # Bring to front
         
         self.timer.start(33)  # ~30 FPS
         
