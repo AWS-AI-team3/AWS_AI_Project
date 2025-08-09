@@ -43,7 +43,6 @@ class MouseController:
         self.last_double_click_time = 0
         self.click_count = 0
         self.last_gesture_time = 0
-        self.gesture_buffer = []  # For gesture smoothing
         
     def process_gesture(self, gesture_data: dict, mouse_pos: Optional[Tuple[int, int]] = None):
         """Process gesture and execute corresponding mouse action"""
@@ -99,8 +98,6 @@ class MouseController:
         screen_x = max(0, min(screen_x, self.screen_width - 1))
         screen_y = max(0, min(screen_y, self.screen_height - 1))
         
-        # Debug print
-        print(f"Moving mouse to: {screen_x}, {screen_y}")
         
         # Use moveTo with duration=0 for immediate response
         pyautogui.moveTo(screen_x, screen_y, duration=0)
@@ -163,13 +160,6 @@ class MouseController:
             pyautogui.rightClick()
             self.last_click_time = current_time
     
-    def double_click(self):
-        """Perform double click"""
-        if not self.mouse_enabled:
-            return
-        pyautogui.doubleClick()
-        self.last_double_click_time = time.time()
-    
     def handle_thumb_index_middle_scroll(self, scroll_speed: float):
         """Handle thumb-index-middle triple pinch scroll based on Y-axis movement"""
         if not self.mouse_enabled:
@@ -209,12 +199,6 @@ class MouseController:
             return
         pyautogui.mouseUp()
         self.dragging = False
-    
-    def double_click(self):
-        """Perform double click"""
-        if not self.mouse_enabled:
-            return
-        pyautogui.doubleClick()
     
     def middle_click(self):
         """Perform middle mouse click"""

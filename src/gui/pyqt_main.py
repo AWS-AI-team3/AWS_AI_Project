@@ -11,15 +11,20 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from PyQt6.QtGui import QFont, QPalette, QColor
 
-# Windows DPI 인식 설정
-if platform.system() == "Windows":
-    try:
-        from ctypes import windll
-        windll.shcore.SetProcessDpiAwareness(1)
-    except:
-        pass
-    os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
-    os.environ["QT_SCALE_FACTOR"] = "1"
+# Windows DPI 인식 설정 (한 번만 실행)
+_DPI_INITIALIZED = False
+
+def setup_dpi_awareness():
+    global _DPI_INITIALIZED
+    if not _DPI_INITIALIZED and platform.system() == "Windows":
+        try:
+            from ctypes import windll
+            windll.shcore.SetProcessDpiAwareness(1)
+        except:
+            pass
+        os.environ.setdefault("QT_AUTO_SCREEN_SCALE_FACTOR", "1")
+        os.environ.setdefault("QT_SCALE_FACTOR", "1")
+        _DPI_INITIALIZED = True
 
 from src.gesture.simple_overlay import SimpleHandOverlay
 from config.settings import APP_NAME, WINDOW_WIDTH, WINDOW_HEIGHT
@@ -35,47 +40,28 @@ class PyQtMainWindow(QMainWindow):
         self.init_ui()
         
     def setup_dark_theme(self):
-        """Set up modern dark theme"""
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #2b2b2b;
-                color: #ffffff;
-            }
-            QWidget {
-                background-color: #2b2b2b;
-                color: #ffffff;
-            }
-            QPushButton {
-                background-color: #404040;
-                border: 2px solid #606060;
-                border-radius: 8px;
-                padding: 12px 24px;
-                font-size: 14px;
-                font-weight: bold;
-                color: #ffffff;
-            }
-            QPushButton:hover {
-                background-color: #505050;
-                border-color: #707070;
-            }
-            QPushButton:pressed {
-                background-color: #353535;
-            }
-            QPushButton:disabled {
-                background-color: #333333;
-                color: #888888;
-                border-color: #444444;
-            }
-            QLabel {
-                color: #ffffff;
-                background: transparent;
-            }
-            QFrame {
-                background-color: #353535;
-                border-radius: 10px;
-                padding: 20px;
-            }
-        """)
+        """Set up modern dark theme from external stylesheet"""
+        try:
+            style_path = os.path.join(os.path.dirname(__file__), '..', '..', 'assets', 'styles', 'dark_theme.qss')
+            style_path = os.path.abspath(style_path)
+            if os.path.exists(style_path):
+                with open(style_path, 'r', encoding='utf-8') as f:
+                    self.setStyleSheet(f.read())
+            else:
+                # Fallback to inline styles
+                self.setStyleSheet("""
+                    QMainWindow { background-color: #2b2b2b; color: #ffffff; }
+                    QWidget { background-color: #2b2b2b; color: #ffffff; }
+                    QPushButton { background-color: #404040; border: 2px solid #606060; 
+                                border-radius: 8px; padding: 12px 24px; font-size: 14px; 
+                                font-weight: bold; color: #ffffff; }
+                    QPushButton:hover { background-color: #505050; border-color: #707070; }
+                    QLabel { color: #ffffff; background: transparent; }
+                    QFrame { background-color: #353535; border-radius: 10px; padding: 20px; }
+                """)
+        except Exception:
+            # Minimal fallback
+            self.setStyleSheet("QMainWindow { background-color: #2b2b2b; color: #ffffff; }")
         
     def init_ui(self):
         self.setWindowTitle(APP_NAME)
@@ -90,7 +76,6 @@ class PyQtMainWindow(QMainWindow):
     
     def show_login_page(self):
         """Display login page"""
-        print("🔄 Showing login page...")  # Debug
         self.clear_current_layout()
         
         # Create new central widget
@@ -101,7 +86,6 @@ class PyQtMainWindow(QMainWindow):
         layout = QVBoxLayout(central_widget)
         layout.setContentsMargins(50, 50, 50, 50)
         layout.setSpacing(30)
-        print("✅ Login page layout created")  # Debug
         
         # Title
         title = QLabel(APP_NAME)
@@ -131,7 +115,6 @@ class PyQtMainWindow(QMainWindow):
     
     def show_main_page(self):
         """Display main page after login"""
-        print("🔄 Showing main page...")  # Debug
         self.clear_current_layout()
         
         # Create new central widget
@@ -140,7 +123,6 @@ class PyQtMainWindow(QMainWindow):
         
         # Main layout
         layout = QVBoxLayout(central_widget)
-        print("✅ Main page layout created")  # Debug
         layout.setContentsMargins(40, 40, 40, 40)
         layout.setSpacing(20)
         
@@ -241,20 +223,7 @@ class PyQtMainWindow(QMainWindow):
         msg = QMessageBox()
         msg.setWindowTitle("제스처 도움말")
         msg.setText(help_text)
-        msg.setStyleSheet("""
-            QMessageBox {
-                background-color: #2b2b2b;
-                color: #ffffff;
-            }
-            QMessageBox QPushButton {
-                background-color: #404040;
-                border: 2px solid #606060;
-                border-radius: 5px;
-                padding: 8px 16px;
-                color: #ffffff;
-                min-width: 80px;
-            }
-        """)
+        msg.setStyleSheet(self.styleSheet())
         msg.exec()
         
     def show_settings(self):
@@ -262,20 +231,7 @@ class PyQtMainWindow(QMainWindow):
         msg = QMessageBox()
         msg.setWindowTitle("설정")
         msg.setText("설정 기능은 추후 업데이트 예정입니다.")
-        msg.setStyleSheet("""
-            QMessageBox {
-                background-color: #2b2b2b;
-                color: #ffffff;
-            }
-            QMessageBox QPushButton {
-                background-color: #404040;
-                border: 2px solid #606060;
-                border-radius: 5px;
-                padding: 8px 16px;
-                color: #ffffff;
-                min-width: 80px;
-            }
-        """)
+        msg.setStyleSheet(self.styleSheet())
         msg.exec()
         
     def logout(self):
@@ -318,6 +274,7 @@ class PyQtMainWindow(QMainWindow):
 
 
 def main():
+    setup_dpi_awareness()
     app = QApplication(sys.argv)
     window = PyQtMainWindow()
     window.show()

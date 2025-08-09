@@ -168,8 +168,6 @@ class HandOverlay:
             if mouse_pos:
                 self.mouse_controller.move_mouse(mouse_pos)
             
-            # Debug: Print gesture and mouse position
-            print(f"Gesture: {gesture_data['type']}, Mouse pos: {mouse_pos}")
             
             # Process gesture with mouse controller
             self.mouse_controller.process_gesture(gesture_data, mouse_pos)

@@ -23,18 +23,19 @@ class GestureRecognizer:
             max_num_hands=MAX_NUM_HANDS,
             min_detection_confidence=HAND_DETECTION_CONFIDENCE,
             min_tracking_confidence=HAND_TRACKING_CONFIDENCE,
-            model_complexity=1  # Higher complexity for better accuracy
+            model_complexity=0  # Lower complexity for better performance
         )
         
-        self.previous_landmarks = None
-        self.gesture_history = []
         self.thumb_index_middle_scroll_start_pos = None
         self.is_thumb_index_middle_scrolling = False
         
     def process_frame(self, frame: np.ndarray) -> Tuple[np.ndarray, Optional[Dict]]:
         """Process video frame and detect hand gestures"""
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = self.hands.process(rgb_frame)
+        # Use in-place color conversion to reduce memory allocation
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame_rgb.flags.writeable = False  # Improve performance
+        results = self.hands.process(frame_rgb)
+        frame_rgb.flags.writeable = True
         
         gesture_data = None
         
@@ -180,26 +181,6 @@ class GestureRecognizer:
             else:
                 return "thumb_index_middle_scroll_hold"
     
-    def detect_click_gesture(self, current_landmarks: np.ndarray) -> Optional[str]:
-        """Detect click gestures based on finger movement"""
-        if self.previous_landmarks is None:
-            self.previous_landmarks = current_landmarks
-            return None
-            
-        # Simple tap detection based on z-coordinate change
-        INDEX_TIP = 8
-        current_z = current_landmarks[INDEX_TIP][2]
-        previous_z = self.previous_landmarks[INDEX_TIP][2]
-        
-        z_diff = current_z - previous_z
-        
-        # Threshold for tap detection
-        if z_diff < -0.05:  # Forward movement (tap)
-            self.previous_landmarks = current_landmarks
-            return "tap"
-            
-        self.previous_landmarks = current_landmarks
-        return None
     
     def cleanup(self):
         """Clean up resources"""
